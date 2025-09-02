@@ -1,4 +1,4 @@
-# Tilt
+# Tilt.
 
 
 <img src="assets/logo-wordmark.png" width="250">
