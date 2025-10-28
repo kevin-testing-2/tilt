@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"os"
 	goruntime "runtime"
 	"testing"
@@ -46,8 +47,21 @@ func TestRegistryFoundMicrok8s(t *testing.T) {
 	registryAsync := newRegistryAsync(clusterid.ProductMicroK8s, core, NewNaiveRuntimeSource(container.RuntimeContainerd))
 
 	registry := registryAsync.Registry(newLoggerCtx(os.Stdout))
-	if assert.NotNil(t, registry, "Registry was nil") {
-		assert.Equal(t, "localhost:32000", registry.Host)
+
+	// Check if localhost resolves to IPv4. If it resolves to IPv6 (like in some CI environments),
+	// the registry detection will intentionally fail and return nil.
+	// See: https://github.com/tilt-dev/tilt/issues/2369
+	ips, err := net.LookupIP("localhost")
+	localhostIsIPv4 := err == nil && len(ips) > 0 && ips[0].To4() != nil
+
+	if localhostIsIPv4 {
+		// In IPv4 environments, registry should be found
+		if assert.NotNil(t, registry, "Registry was nil") {
+			assert.Equal(t, "localhost:32000", registry.Host)
+		}
+	} else {
+		// In IPv6 environments, registry detection intentionally returns nil
+		assert.Nil(t, registry, "Registry should be nil when localhost resolves to IPv6")
 	}
 }
 
